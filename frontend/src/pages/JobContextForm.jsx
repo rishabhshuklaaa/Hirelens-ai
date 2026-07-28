@@ -1,37 +1,36 @@
 import { useState, useEffect } from "react";
 import api from "../api/axios";
 
-const JobContextForm = () => {
-  const [formData, setFormData] = useState({
-    company_name: "",
-    company_sector: "Tech",
-    jd_text: ""
-  });
+const JobContextForm = ({ selectedJobContext, setSelectedJobContext, refreshTrigger, setRefreshTrigger }) => {
+  const [contexts, setContexts] = useState([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [formData, setFormData] = useState({ company_name: "", company_sector: "Tech", job_title: "", jd_text: "" });
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
 
-  // Fetch existing context on mount
-  useEffect(() => {
-    const fetchContext = async () => {
-      try {
-        const response = await api.get("/job-context/");
-        setFormData({
-          company_name: response.data.company_name,
-          company_sector: response.data.company_sector,
-          jd_text: response.data.jd_text
-        });
-      } catch (error) {
-        // 404 is expected if no context exists yet
-        if (error.response?.status !== 404) {
-          console.error("Error fetching context:", error);
+  const fetchContexts = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get("/job-context/");
+      setContexts(response.data);
+      
+      if (response.data.length > 0) {
+        const stillExists = response.data.find(c => c.id === selectedJobContext?.id);
+        if (!stillExists) {
+          setSelectedJobContext(response.data[0]);
         }
-      } finally {
-        setLoading(false);
+      } else {
+        setSelectedJobContext(null);
       }
-    };
-    fetchContext();
-  }, []);
+    } catch (error) {
+      console.error("Error fetching contexts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContexts();
+  }, [refreshTrigger]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -39,83 +38,98 @@ const JobContextForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
-    setMessage("");
-    
     try {
       await api.post("/job-context/", formData);
-      setMessage("Job Context saved successfully! AI is ready for resumes.");
+      setRefreshTrigger(prev => prev + 1);
+      setIsCreating(false);
+      setFormData({ company_name: "", company_sector: "Tech", job_title: "", jd_text: "" });
     } catch (error) {
-      setMessage(error.response?.data?.detail || "Failed to save context.");
-    } finally {
-      setSubmitting(false);
+      console.error("Create error:", error);
+      alert("Failed to save context.");
     }
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  const handleDelete = async (id) => {
+    if (window.confirm("Permanently delete this Job Context?")) {
+      try {
+        await api.delete(`/job-context/${id}`);
+        setRefreshTrigger(prev => prev + 1);
+      } catch (error) {
+        console.error("Delete error:", error);
+        alert("Failed to delete.");
+      }
+    }
+  };
+
+  if (loading) return <div className="p-8">Loading Job Contexts...</div>;
 
   return (
-    <div className="max-w-3xl mx-auto mt-8">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Set Job Context (AI Persona)</h2>
-      
-      {message && (
-        <div className={`mb-4 p-3 rounded ${message.includes("success") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-          {message}
+    <div className="bg-white p-6 rounded-lg shadow-md h-fit">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold text-gray-800">Job Contexts</h2>
+        {!isCreating && (
+          <button onClick={() => setIsCreating(true)} className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded font-semibold hover:bg-blue-200">
+            + New Context
+          </button>
+        )}
+      </div>
+
+      {isCreating ? (
+        <form onSubmit={handleSubmit} className="space-y-4 mb-6 border p-4 rounded bg-gray-50">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+            <input type="text" name="job_title" value={formData.job_title} onChange={handleChange} required className="w-full p-2 border rounded" placeholder="e.g., Senior Python Developer" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+            <input type="text" name="company_name" value={formData.company_name} onChange={handleChange} required className="w-full p-2 border rounded" placeholder="e.g., Google" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sector</label>
+            <select name="company_sector" value={formData.company_sector} onChange={handleChange} className="w-full p-2 border rounded">
+              <option>Tech</option><option>FinTech</option><option>Healthcare</option><option>E-commerce</option><option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">JD</label>
+            <textarea name="jd_text" value={formData.jd_text} onChange={handleChange} required rows="4" className="w-full p-2 border rounded text-sm font-mono" />
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded font-semibold">Save</button>
+            <button type="button" onClick={() => setIsCreating(false)} className="flex-1 bg-gray-200 py-2 rounded font-semibold">Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <div className="space-y-2 mb-6">
+          {contexts.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-4">No contexts yet. Create one to start.</p>
+          ) : (
+            contexts.map((ctx) => (
+              <div 
+                key={ctx.id} 
+                onClick={() => setSelectedJobContext(ctx)}
+                className={`p-3 rounded-lg border cursor-pointer flex justify-between items-center ${selectedJobContext?.id === ctx.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+              >
+                <div>
+                  {/* Yahan Job Title prominently dikhayenge */}
+                  <p className="font-medium text-gray-800">{ctx.job_title}</p>
+                  <p className="text-xs text-gray-500">{ctx.company_name} • {ctx.company_sector}</p>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); handleDelete(ctx.id); }} className="text-red-500 hover:text-red-700 text-sm">Delete</button>
+              </div>
+            ))
+          )}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-          <input
-            type="text"
-            name="company_name"
-            value={formData.company_name}
-            onChange={handleChange}
-            required
-            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="e.g., Google, Stripe"
-          />
+      {selectedJobContext && (
+        <div className="mt-4 border-t pt-4">
+          <h3 className="text-sm font-bold text-gray-700 mb-2">Active Context JD:</h3>
+          <div className="bg-gray-900 text-gray-300 p-3 rounded text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+            {selectedJobContext.jd_text}
+          </div>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Company Sector</label>
-          <select
-            name="company_sector"
-            value={formData.company_sector}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="Tech">Tech</option>
-            <option value="FinTech">FinTech</option>
-            <option value="Healthcare">Healthcare</option>
-            <option value="E-commerce">E-commerce</option>
-            <option value="Other">Other</option>
-          </select>
-          <p className="text-xs text-gray-500 mt-1">This defines how the AI will evaluate resumes.</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Job Description (JD)</label>
-          <textarea
-            name="jd_text"
-            value={formData.jd_text}
-            onChange={handleChange}
-            required
-            rows="8"
-            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
-            placeholder="Paste the full Job Description here..."
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded disabled:opacity-50"
-        >
-          {submitting ? "Saving..." : "Save Job Context"}
-        </button>
-      </form>
+      )}
     </div>
   );
 };

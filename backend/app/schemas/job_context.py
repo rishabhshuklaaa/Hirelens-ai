@@ -4,6 +4,7 @@ from datetime import datetime
 class JobContextBase(BaseModel):
     company_name: str
     company_sector: str
+    job_title: str
     jd_text: str
 
 class JobContextCreate(JobContextBase):
