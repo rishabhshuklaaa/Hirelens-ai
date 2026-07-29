@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # Sanity/GROQ API Key for LangChain Groq integration
     GROQ_API_KEY: str
 
+
+    # SMTP Settings
+    SMTP_SERVER: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"

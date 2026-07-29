@@ -1,18 +1,20 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
-class Batch(Base):
-    __tablename__ = "batches"
+class EmailLog(Base):
+    __tablename__ = "email_logs"
 
     id = Column(Integer, primary_key=True, index=True)
+    resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    job_context_id = Column(Integer, ForeignKey("job_contexts.id", ondelete="SET NULL"), nullable=True)
     
-    total_files = Column(Integer, nullable=False, default=0)
-    status = Column(String(50), default="processing") # e.g., processing, completed, failed
+    candidate_email = Column(String(255), nullable=False)
+    email_type = Column(String(50), nullable=False) # offer, assessment, interview, rejection
+    subject = Column(String(500), nullable=False)
+    body = Column(Text, nullable=False)
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    sent_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationship
-    resumes = relationship("Resume", back_populates="batch", cascade="all, delete-orphan")
+    resume = relationship("Resume")

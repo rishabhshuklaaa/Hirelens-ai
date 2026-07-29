@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+// ADDED: Imported useNavigate to handle the Next button routing
+import { useSearchParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import CandidateCard from "../components/CandidateCard";
 import api from "../api/axios";
@@ -13,6 +14,9 @@ const Audit = () => {
   const [showChart, setShowChart] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
+  
+  // ADDED: Initialize navigate hook
+  const navigate = useNavigate();
 
   // Step 1: Resolve which batch to show.
   // Prefer the batch passed in the URL (from Upload page). Otherwise pick the latest batch.
@@ -90,10 +94,20 @@ const Audit = () => {
     setTimeout(() => setHighlightedId(null), 2000);
   };
 
+  // ADDED: Function to navigate to the Decisions page with the current batchId
+  const goToDecisions = () => {
+    if (batchId) navigate(`/decisions?batch=${batchId}`);
+  };
+
   // Derived data
   const scoredResumes = resumes.filter(r => r.ai_status !== "PENDING_AI");
   const pendingCount = resumes.filter(r => r.ai_status === "PENDING_AI").length;
   const progressPercent = resumes.length > 0 ? (scoredResumes.length / resumes.length) * 100 : 0;
+
+  // ADDED: Check if at least one resume has been approved or rejected by the recruiter
+  const hasDecisions = resumes.some(
+    (r) => r.recruiter_decision === "APPROVED" || r.recruiter_decision === "REJECTED"
+  );
 
   // Summary counts for the report strip
   const summary = {
@@ -243,6 +257,19 @@ const Audit = () => {
           )}
         </div>
       </main>
+
+      {/* ADDED: Fixed Next button at Bottom Right, only visible if at least one resume is Approved/Rejected */}
+      {hasDecisions && (
+        <div className="fixed bottom-8 right-8 z-50">
+          <button
+            onClick={goToDecisions}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-full shadow-lg flex items-center gap-2 transition-all hover:scale-105"
+            title="Go to Decisions & Emails"
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Audit from "./pages/Audit";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Decisions from "./pages/Decisions";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/audit" element={<Audit />} />
+            <Route path="/decisions" element={<Decisions />}></Route>
           </Route>
         </Routes>
       </Router>
