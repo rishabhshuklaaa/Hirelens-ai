@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from app.models.resume import ResumeStatus, AIStatus, AITierDecision, RecruiterDecision
 from app.models.resume import ResumeStatus
 
 class ResumeResponse(BaseModel):
@@ -11,6 +12,17 @@ class ResumeResponse(BaseModel):
     quick_score: float | None = None
     status: ResumeStatus
     unreadable_reason: str | None = None
+
+    # Phase 3 AI Fields
+    ai_status: AIStatus
+    ai_overall_score: float | None = None
+    ai_tier_decision: AITierDecision | None = None
+    ai_vector_scores: dict | None = None
+    ai_score_justification: str | None = None
+    ai_strong_points: list[str] | None = None
+    ai_missing_skills: list[str] | None = None
+    ai_red_flags: list[str] | None = None
+    recruiter_decision: RecruiterDecision
 
     model_config = ConfigDict(from_attributes=True)
 

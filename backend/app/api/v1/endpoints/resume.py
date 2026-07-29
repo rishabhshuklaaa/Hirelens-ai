@@ -7,8 +7,13 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.resume import Resume, ResumeStatus
 from app.schemas.batch import ResumeResponse, ResumeStatusUpdate
+from app.models.resume import RecruiterDecision
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/resume", tags=["Resume Actions"])
+
+class RecruiterDecisionUpdate(BaseModel):
+    decision: RecruiterDecision
 
 @router.get("/all", response_model=list[ResumeResponse])
 def get_all_user_resumes(
@@ -101,3 +106,25 @@ def delete_resume(
     db.commit()
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# Added endpoint to allow recruiters to approve/reject resumes after AI scoring
+@router.patch("/{resume_id}/decision", response_model=ResumeResponse)
+def update_recruiter_decision(
+    resume_id: int,
+    update_data: RecruiterDecisionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Approve or Reject a resume by the recruiter."""
+    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+        
+    if resume.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+        
+    resume.recruiter_decision = update_data.decision
+    db.commit()
+    db.refresh(resume)
+    return resume

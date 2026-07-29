@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Cookie Settings
     COOKIE_DOMAIN: str | None = None
 
+    # Sanity/GROQ API Key for LangChain Groq integration
+    GROQ_API_KEY: str
+
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"

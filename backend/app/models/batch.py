@@ -15,4 +15,5 @@ class Batch(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationship
+    job_context = relationship("JobContext")
     resumes = relationship("Resume", back_populates="batch", cascade="all, delete-orphan")
