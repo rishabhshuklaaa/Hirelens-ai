@@ -24,7 +24,7 @@ langchain-core==0.2.10
 langchain-groq==0.1.6
 
 # command for backend
-uvicorn app.main:app --reload
+# uvicorn app.main:app --reload
 
 # command for frontend
-nom run dev
+# nom run dev
