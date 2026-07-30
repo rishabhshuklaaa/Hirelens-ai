@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
-// ADDED: Imported useNavigate to handle the Next button routing
 import { useSearchParams, useNavigate } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import CandidateCard from "../components/CandidateCard";
 import api from "../api/axios";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 const Audit = () => {
-  const [batchId, setBatchId] = useState(null);   // resolved silently, no dropdown
+  const [batchId, setBatchId] = useState(null);
   const [resumes, setResumes] = useState([]);
   const [isAuditing, setIsAuditing] = useState(false);
   const [highlightedId, setHighlightedId] = useState(null);
@@ -15,11 +13,9 @@ const Audit = () => {
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   
-  // ADDED: Initialize navigate hook
   const navigate = useNavigate();
 
-  // Step 1: Resolve which batch to show.
-  // Prefer the batch passed in the URL (from Upload page). Otherwise pick the latest batch.
+  // Step 1: Resolve batch
   useEffect(() => {
     const resolveBatch = async () => {
       const batchFromUrl = searchParams.get("batch");
@@ -30,7 +26,6 @@ const Audit = () => {
       try {
         const res = await api.get("/resume/all");
         if (res.data.length > 0) {
-          // Latest batch = highest batch_id
           const latest = Math.max(...res.data.map(r => r.batch_id));
           setBatchId(latest);
         } else {
@@ -44,7 +39,7 @@ const Audit = () => {
     resolveBatch();
   }, [searchParams]);
 
-  // Step 2: Fetch results for the resolved batch. Poll while auditing.
+  // Step 2: Fetch & Poll results
   useEffect(() => {
     if (!batchId) return;
 
@@ -54,7 +49,6 @@ const Audit = () => {
         setResumes(res.data);
         setLoading(false);
 
-        // Stop polling once nothing is left in PENDING_AI.
         if (isAuditing) {
           const stillPending = res.data.some(r => r.ai_status === "PENDING_AI");
           if (!stillPending) setIsAuditing(false);
@@ -94,22 +88,18 @@ const Audit = () => {
     setTimeout(() => setHighlightedId(null), 2000);
   };
 
-  // ADDED: Function to navigate to the Decisions page with the current batchId
   const goToDecisions = () => {
     if (batchId) navigate(`/decisions?batch=${batchId}`);
   };
 
-  // Derived data
   const scoredResumes = resumes.filter(r => r.ai_status !== "PENDING_AI");
   const pendingCount = resumes.filter(r => r.ai_status === "PENDING_AI").length;
   const progressPercent = resumes.length > 0 ? (scoredResumes.length / resumes.length) * 100 : 0;
 
-  // ADDED: Check if at least one resume has been approved or rejected by the recruiter
   const hasDecisions = resumes.some(
     (r) => r.recruiter_decision === "APPROVED" || r.recruiter_decision === "REJECTED"
   );
 
-  // Summary counts for the report strip
   const summary = {
     total: resumes.length,
     strong: resumes.filter(r => r.ai_tier_decision === "STRONG_FIT").length,
@@ -129,28 +119,40 @@ const Audit = () => {
 
   const getBarColor = (tier) => {
     switch (tier) {
-      case "STRONG_FIT": return "#16a34a";
-      case "MAYBE": return "#d97706";
-      case "NO": return "#dc2626";
-      default: return "#3b82f6";
+      case "STRONG_FIT": return "#10b981";
+      case "MAYBE": return "#f59e0b";
+      case "NO": return "#f43f5e";
+      default: return "#6366f1";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Navbar />
-      <main className="container mx-auto py-8 px-4">
+    <div className="min-h-full bg-slate-100/80 text-slate-900 font-sans selection:bg-rose-500 selection:text-white pb-24">
+      <main className="max-w-[1500px] mx-auto  px-4 md:px-8 space-y-6">
 
-        {/* Header + Run button */}
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6 flex justify-between items-center">
+        {/* HEADER BAR */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Deep AI Audit Report</h2>
-            <p className="text-sm text-gray-500">Comprehensive analysis of your shortlisted resumes.</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 uppercase tracking-wider">
+                Step 2 • Evaluation
+              </span>
+              {batchId && (
+                <span className="text-xs font-mono text-slate-400">Batch ID: #{batchId}</span>
+              )}
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 font-display">
+              Deep 5-Vector AI Audit
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Semantic analysis assessing technical depth, project metrics, and career trajectory.
+            </p>
           </div>
+
           <button
             onClick={handleRunAudit}
             disabled={!batchId || isAuditing || resumes.length === 0}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded disabled:opacity-50 flex items-center gap-2"
+            className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-2.5 px-6 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed shrink-0"
           >
             {isAuditing ? (
               <>
@@ -158,75 +160,101 @@ const Audit = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Analyzing...
+                <span>Evaluating 5 Vectors...</span>
               </>
             ) : (
-              "Run AI Audit"
+              <span>Run AI Audit</span>
             )}
           </button>
         </div>
 
-        {/* Summary stats strip */}
+        {/* SUMMARY STATS STRIP */}
         {resumes.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <p className="text-2xl font-bold text-gray-800">{summary.total}</p>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Total</p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs text-center">
+              <p className="text-2xl font-extrabold text-slate-900">{summary.total}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Total Shortlisted</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <p className="text-2xl font-bold text-green-600">{summary.strong}</p>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Strong Fit</p>
+
+            <div className="bg-white p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/20 shadow-xs text-center">
+              <p className="text-2xl font-extrabold text-emerald-600">{summary.strong}</p>
+              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mt-0.5">Strong Fit</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <p className="text-2xl font-bold text-amber-600">{summary.maybe}</p>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Maybe</p>
+
+            <div className="bg-white p-4 rounded-xl border border-amber-200/80 bg-amber-50/20 shadow-xs text-center">
+              <p className="text-2xl font-extrabold text-amber-600">{summary.maybe}</p>
+              <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mt-0.5">Maybe</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <p className="text-2xl font-bold text-red-600">{summary.no}</p>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">No</p>
+
+            <div className="bg-white p-4 rounded-xl border border-rose-200/80 bg-rose-50/20 shadow-xs text-center">
+              <p className="text-2xl font-extrabold text-rose-600">{summary.no}</p>
+              <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider mt-0.5">No Fit</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <p className="text-2xl font-bold text-blue-500">{summary.pending}</p>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Pending</p>
+
+            <div className="bg-white p-4 rounded-xl border border-indigo-200/80 bg-indigo-50/20 shadow-xs text-center col-span-2 md:col-span-1">
+              <p className="text-2xl font-extrabold text-indigo-600">{summary.pending}</p>
+              <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider mt-0.5">Pending AI</p>
             </div>
           </div>
         )}
 
-        {/* Progress bar while auditing */}
+        {/* PROGRESS BAR WHILE AUDITING */}
         {isAuditing && (
-          <div className="bg-white p-6 rounded-lg shadow-md mb-6 text-center">
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Deep AI Analysis in Progress</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Evaluated {scoredResumes.length} of {resumes.length} resumes... ({pendingCount} remaining)
-            </p>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+          <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 shadow-md space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping"></span>
+                <span className="font-bold">Deep AI Analysis in Progress...</span>
+              </div>
+              <span className="text-slate-400 font-mono text-[11px]">
+                {scoredResumes.length} of {resumes.length} Evaluated ({pendingCount} pending)
+              </span>
+            </div>
+
+            <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-rose-500 transition-all duration-500" 
+                style={{ width: `${progressPercent}%` }}
+              ></div>
             </div>
           </div>
         )}
 
-        {/* On-demand comparison graph */}
+        {/* COMPARISON GRAPH CARD */}
         {chartData.length > 0 && (
-          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Candidate Comparison</h3>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Candidate Score Comparison</h3>
+                <p className="text-xs text-slate-500">Visual breakdown across 5 semantic vectors.</p>
+              </div>
               <button
                 onClick={() => setShowChart(prev => !prev)}
-                className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-1.5 px-4 rounded"
+                className="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer"
               >
-                {showChart ? "Hide Graph" : "Show Graph"}
+                {showChart ? "Hide Graph ✕" : "Show Graph 📊"}
               </button>
             </div>
+
             {showChart && (
-              <>
-                <p className="text-xs text-gray-500 mb-4 mt-1">Click a bar to jump to that candidate's card.</p>
-                <div style={{ width: "100%", height: 300 }}>
+              <div className="pt-2 space-y-2">
+                <p className="text-[11px] text-slate-400 font-medium">💡 Click any bar to jump directly to candidate details.</p>
+                <div style={{ width: "100%", height: 280 }}>
                   <ResponsiveContainer>
-                    <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                      <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
-                      <YAxis domain={[0, 100]} stroke="#6b7280" />
-                      <Tooltip cursor={{ fill: "transparent" }} contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb" }} />
-                      <Bar dataKey="score" radius={[4, 4, 0, 0]} onClick={handleBarClick} cursor="pointer">
+                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                      <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} tickLine={false} />
+                      <Tooltip 
+                        cursor={{ fill: "rgba(241,245,249,0.6)" }} 
+                        contentStyle={{ 
+                          backgroundColor: "#0F172A", 
+                          borderColor: "#1E293B", 
+                          borderRadius: "12px", 
+                          color: "#F8FAFC",
+                          fontSize: "12px"
+                        }} 
+                      />
+                      <Bar dataKey="score" radius={[6, 6, 0, 0]} onClick={handleBarClick} cursor="pointer">
                         {chartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={getBarColor(entry.tier)} />
                         ))}
@@ -234,17 +262,26 @@ const Audit = () => {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
 
-        {/* Candidate cards (each appears as it gets scored) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* CANDIDATE CARDS GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {loading ? (
-            <p className="text-gray-500 text-center col-span-2 py-8">Loading report...</p>
+            <div className="col-span-2 py-12 text-center text-xs font-bold text-slate-400 flex items-center justify-center gap-2">
+              <svg className="animate-spin h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Loading audit reports...</span>
+            </div>
           ) : resumes.length === 0 ? (
-            <p className="text-gray-500 text-center col-span-2 py-8">No resumes found. Upload resumes first.</p>
+            <div className="col-span-2 py-12 text-center bg-white rounded-2xl border border-slate-200/90 shadow-sm space-y-2">
+              <p className="text-xs font-bold text-slate-700">No resumes found in this batch.</p>
+              <p className="text-xs text-slate-400">Upload candidate PDFs first to trigger deep evaluation.</p>
+            </div>
           ) : (
             resumes.map(resume => (
               <CandidateCard
@@ -252,24 +289,30 @@ const Audit = () => {
                 resume={resume}
                 onDecisionUpdate={handleDecisionUpdate}
                 highlighted={highlightedId === resume.id}
+                isAuditing={isAuditing} // Pass isAuditing prop to CandidateCard
               />
             ))
           )}
         </div>
+
       </main>
 
-      {/* ADDED: Fixed Next button at Bottom Right, only visible if at least one resume is Approved/Rejected */}
+      {/* FLOATING NEXT BUTTON */}
       {hasDecisions && (
         <div className="fixed bottom-8 right-8 z-50">
           <button
             onClick={goToDecisions}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-full shadow-lg flex items-center gap-2 transition-all hover:scale-105"
-            title="Go to Decisions & Emails"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-7 rounded-2xl shadow-xl shadow-emerald-600/30 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer text-xs uppercase tracking-wider"
+            title="Proceed to Decisions & Outreach"
           >
-            Next →
+            <span>Proceed to Outreach</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
           </button>
         </div>
       )}
+
     </div>
   );
 };

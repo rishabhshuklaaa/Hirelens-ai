@@ -7,13 +7,12 @@ const UploadArea = ({ selectedJobContext }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [batchId, setBatchId] = useState(null);
-  const [totalFiles, setTotalFiles] = useState(0); // known upfront from upload response
+  const [totalFiles, setTotalFiles] = useState(0);
   const [error, setError] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isBatchCompleted, setIsBatchCompleted] = useState(false);
   const [resumes, setResumes] = useState([]);
 
-  // Live SSE status: filename -> {status, score, reason}
   const [fileStatus, setFileStatus] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -37,7 +36,7 @@ const UploadArea = ({ selectedJobContext }) => {
     fetchResumes();
   }, [refreshTrigger]);
 
-  // ---- SSE live progress ----
+  // SSE live progress
   useEffect(() => {
     if (!batchId) return;
     setFileStatus({});
@@ -52,7 +51,6 @@ const UploadArea = ({ selectedJobContext }) => {
     es.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      // Terminal event: stop processing, refresh DB-backed counts + audit button
       if (data.status === "COMPLETED" || data.status === "FAILED") {
         setIsProcessing(false);
         es.close();
@@ -60,7 +58,6 @@ const UploadArea = ({ selectedJobContext }) => {
         return;
       }
 
-      // Per-file update (used only to compute live counts, not shown as a list)
       setFileStatus(prev => ({
         ...prev,
         [data.filename]: { status: data.status, score: data.score, reason: data.reason },
@@ -68,7 +65,6 @@ const UploadArea = ({ selectedJobContext }) => {
     };
 
     es.onerror = () => {
-      // Flaky event: still surface the audit button via handleComplete
       setIsProcessing(false);
       es.close();
       handleComplete();
@@ -131,15 +127,14 @@ const UploadArea = ({ selectedJobContext }) => {
     }
   };
 
-  // ---- Progress (fluid bar) from SSE ----
   const sseEntries = Object.entries(fileStatus);
   const sseDone = sseEntries.filter(([, i]) => i.status !== "Processing...").length;
   const barTotal = totalFiles || sseEntries.length;
   const pct = isBatchCompleted ? 100 : (barTotal ? (sseDone / barTotal) * 100 : 0);
 
-  // Count "Added" and "Review" from SSE while processing, from DB otherwise.
-  // DB source keeps counts correct after refresh/login AND updates live when a
-  // review resume is added to the pipeline.
+  // FIX FOR "2 of 3 processed": Ensure display counter shows total when batch completes/stops processing
+  const processedDisplayCount = (!isProcessing || isBatchCompleted) ? barTotal : Math.min(sseDone, barTotal);
+
   const tally = (getStatus) => (list) =>
     list.reduce((a, item) => {
       const s = getStatus(item);
@@ -154,9 +149,6 @@ const UploadArea = ({ selectedJobContext }) => {
   const dbCounts = tally((r) => r.status)(resumes);
   const view = isProcessing ? sseCounts : dbCounts;
 
-  // ---- Audit button visibility ----
-  // Show when at least one resume is ready (added). Hide only if all are in
-  // review / unreadable / duplicate, or the DB is empty.
   const hasReadyResumes = resumes.some(r => r.status === "AUTO_ADDED" || r.status === "ADDED_BY_RECRUITER");
   const hasReviewResumes = resumes.some(r => r.status === "NEEDS_REVIEW");
 
@@ -165,39 +157,77 @@ const UploadArea = ({ selectedJobContext }) => {
     if (targetBatchId) navigate(`/audit?batch=${targetBatchId}`);
   };
 
-  const showPanel = barTotal > 0 || resumes.length > 0;
+  const showPanel = resumes.length > 0 && (isProcessing || (barTotal > 0 && isBatchCompleted));
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-      <h2 className="text-xl font-bold mb-4 text-gray-800">
-        Upload Resumes{" "}
-        {selectedJobContext ? (
-          <span className="text-sm font-normal text-gray-500">for {selectedJobContext.job_title}</span>
-        ) : (
-          <span className="text-sm font-normal text-red-500"> (No Context Selected)</span>
-        )}
-      </h2>
-
+    <div className="space-y-4">
+      
+      {/* Modern Drag & Drop Zone */}
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className="border-2 border-dashed border-gray-300 p-8 text-center rounded-lg hover:border-blue-500 transition-colors"
+        className={`p-6 rounded-xl border-2 border-dashed transition-all text-center flex flex-col items-center justify-center relative ${
+          !selectedJobContext 
+            ? "border-slate-200 bg-slate-50/50 opacity-60 cursor-not-allowed" 
+            : "border-slate-300 hover:border-indigo-500 bg-slate-50/30 hover:bg-indigo-50/20 cursor-pointer"
+        }`}
       >
-        <input type="file" multiple accept="application/pdf" onChange={handleFileChange} className="hidden" id="file-upload" />
-        <label htmlFor="file-upload" className="cursor-pointer text-blue-600 font-semibold hover:underline">Click to select</label>
-        <span className="text-gray-500"> or drag and drop PDF files here</span>
+        <input 
+          type="file" 
+          multiple 
+          accept="application/pdf" 
+          onChange={handleFileChange} 
+          disabled={!selectedJobContext}
+          className="hidden" 
+          id="file-upload" 
+        />
+        
+        <label 
+          htmlFor="file-upload" 
+          className={`flex flex-col items-center justify-center w-full h-full ${!selectedJobContext ? "cursor-not-allowed" : "cursor-pointer"}`}
+        >
+          <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-indigo-600 mb-2.5">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 0115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+
+          <p className="text-xs font-bold text-slate-800">
+            <span className="text-indigo-600 hover:underline">Click to browse</span> or drag and drop candidate PDFs
+          </p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            Supports batch processing up to 10 PDFs (Max 20MB per file)
+          </p>
+        </label>
       </div>
 
-      {error && <div className="mt-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+      {error && (
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium flex items-center gap-2">
+          <span>⚠️ {error}</span>
+        </div>
+      )}
 
+      {/* Selected Files List with SVG Delete Icon */}
       {files.length > 0 && (
-        <div className="mt-4">
-          <p className="text-sm font-medium text-gray-700 mb-2">{files.length} file(s) selected:</p>
-          <ul className="mt-2 text-sm text-gray-600 space-y-1">
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+            <span>{files.length} file(s) selected:</span>
+          </div>
+          <ul className="space-y-1 max-h-36 overflow-y-auto pr-1">
             {files.map((file, idx) => (
-              <li key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded border">
-                <span className="truncate pr-2">{file.name}</span>
-                <button onClick={() => handleRemoveFile(idx)} className="text-red-500 hover:text-red-700 font-bold flex-shrink-0">❌</button>
+              <li key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 text-xs shadow-xs">
+                <span className="truncate text-slate-700 font-medium pr-2">{file.name}</span>
+                
+                {/* SVG TRASH DELETE BUTTON (REPLACED 'X') */}
+                <button 
+                  onClick={() => handleRemoveFile(idx)} 
+                  className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all cursor-pointer shrink-0"
+                  title="Remove file"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </li>
             ))}
           </ul>
@@ -207,70 +237,56 @@ const UploadArea = ({ selectedJobContext }) => {
       <button
         onClick={handleUpload}
         disabled={files.length === 0 || uploading || !selectedJobContext}
-        className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded disabled:opacity-50"
+        className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer disabled:cursor-not-allowed shadow-sm"
       >
-        {uploading ? "Uploading..." : "Start Processing"}
+        {uploading ? "Uploading Batch..." : "Start Pre-Filter Processing"}
       </button>
 
-      {/* ---- Single fluid line + live count segments (no per-file list) ---- */}
+      {/* Progress Panel */}
       {showPanel && (
-        <div className="mt-6 border rounded-xl p-4 bg-gray-50">
-          {/* Fluid progress line: only during/after a batch in this session */}
-          {barTotal > 0 && (
-            <>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-gray-700">
-                  {isProcessing ? "Processing resumes..." : "Processing complete"}
-                </h4>
-                <span className="text-xs text-gray-500">{Math.min(sseDone, barTotal)} of {barTotal} processed</span>
-              </div>
-              <div className="w-full h-1.5 bg-gray-200 rounded-full mb-4 overflow-hidden">
-                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${pct}%` }} />
-              </div>
-            </>
-          )}
+        <div className="p-3.5 rounded-xl bg-slate-900 text-white border border-slate-800 space-y-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-300 font-bold">
+              {isProcessing ? "Processing resumes..." : "Processing Complete"}
+            </span>
+            <span className="text-slate-400 text-[10px] font-mono">
+              {processedDisplayCount} of {barTotal} processed
+            </span>
+          </div>
 
-          {/* Count segments — numbers only, update live */}
-          <div className="flex flex-wrap gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200">
-              <span className="h-2 w-2 rounded-full bg-green-500" />
-              <span className="text-sm font-semibold text-green-700">Added: {view.added}</span>
+          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-indigo-500 to-rose-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+              <span>Added: {view.added}</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-              <span className="text-sm font-semibold text-amber-700">Review: {view.review}</span>
+
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+              <span>Review: {view.review}</span>
             </div>
-            {view.dupe > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
-                <span className="h-2 w-2 rounded-full bg-gray-400" />
-                <span className="text-sm font-medium text-gray-500">Already uploaded: {view.dupe}</span>
-              </div>
-            )}
-            {view.flag > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                <span className="text-sm font-medium text-red-700">Flagged: {view.flag}</span>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* ---- Deep AI Audit CTA ---- */}
+      {/* Audit CTA */}
       {hasReadyResumes ? (
-        <div className="mt-6 bg-green-50 border border-green-200 p-4 rounded-lg text-center">
-          <p className="text-sm font-medium text-green-800 mb-3">✅ Resumes are ready for AI evaluation.</p>
-          <button onClick={goToAudit} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-            Run Deep AI Audit →
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center space-y-2">
+          <p className="text-xs font-bold text-emerald-800">✅ Resumes are ready for 5-Vector AI evaluation.</p>
+          <button onClick={goToAudit} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs cursor-pointer">
+            View Candidates in Audit Pipeline →
           </button>
         </div>
       ) : hasReviewResumes ? (
-        <div className="mt-6 bg-amber-50 border border-amber-200 p-4 rounded-lg text-center">
-          <p className="text-sm font-medium text-amber-800">⚠️ All resumes are in 'Needs Review'. Add them to the pipeline below to run the AI Audit.</p>
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+          <p className="text-xs font-bold text-amber-800">⚠️ All resumes are in 'Needs Review'. Add them to the pipeline below.</p>
         </div>
       ) : null}
 
-      <div className="mt-8">
+      <div className="pt-2">
         <ResumeList resumes={resumes} onRefresh={fetchResumes} />
       </div>
     </div>

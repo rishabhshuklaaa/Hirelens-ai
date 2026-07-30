@@ -1,25 +1,31 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Sidebar from "./Sidebar";
 
 const ProtectedRoute = () => {
   const { user, loading } = useAuth();
 
-  // Show loading spinner while checking auth status on refresh
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex justify-center items-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
 
-  // If no user is found, redirect to login page
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // If user exists, render the child routes
-  return <Outlet />;
+  // Sidebar + Main Content Layout
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      <Sidebar />
+      <main className="flex-1 p-8 overflow-y-auto h-screen">
+        <Outlet />
+      </main>
+    </div>
+  );
 };
 
 export default ProtectedRoute;

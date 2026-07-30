@@ -22,3 +22,9 @@ python-magic-bin==0.4.14 ; sys_platform == 'win32'
 
 langchain-core==0.2.10
 langchain-groq==0.1.6
+
+# command for backend
+uvicorn app.main:app --reload
+
+# command for frontend
+nom run dev
