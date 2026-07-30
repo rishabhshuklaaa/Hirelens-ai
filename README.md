@@ -75,44 +75,40 @@ Once decisions are made, recruiters can:
 - Send emails directly via SMTP
 
 ---
-
-# 📸 Application Preview
-
 ## 1. Authentication
 
 Premium split-screen authentication experience.
 
-```text
-assets/login.png
-```
+<p align="center">
+  <img src="./assets/login.png" alt="Authentication Page" width="100%">
+</p>
 
 ---
 
 ## 2. Dashboard
 
-Recruiters configure job context and upload resumes.
+Recruiters configure job context and upload resumes. The Smart Python Gatekeeper validates every resume before AI processing.
 
-The Python Gatekeeper validates every resume before AI processing.
-
-```text
-assets/dashboard.png
-```
+<p align="center">
+  <img src="./assets/dashboard.png" alt="Dashboard" width="100%">
+</p>
 
 ---
 
 ## 3. AI Audit Dashboard
 
-Interactive candidate comparison dashboard featuring:
+Interactive AI-powered candidate evaluation dashboard featuring:
 
-- Leaderboard
-- AI reasoning
-- Semantic analysis
-- Graphs & Charts
-- Approve / Reject workflow
+- Candidate Leaderboard
+- Deep Semantic Analysis
+- Interactive Graphs & Charts
+- AI Reasoning
+- Approve / Reject Workflow
 
-```text
-assets/audit.png
-```
+<p align="center">
+  <img src="./assets/audit.png" alt="AI Audit Dashboard" width="100%">
+</p>
+
 
 ---
 
@@ -283,18 +279,30 @@ http://localhost:5173
 
 # 🔑 Environment Variables
 
+Create a `.env` file inside the `backend` directory and configure the following variables:
+
 ```env
-DATABASE_URL=
-SECRET_KEY=
-GROQ_API_KEY=
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/hirelens_ai
 
-SMTP_SERVER=
-SMTP_PORT=
-SMTP_USERNAME=
-SMTP_PASSWORD=
+# JWT
+SECRET_KEY=your_secret_key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-FRONTEND_URL=
-COOKIE_DOMAIN=
+# Environment
+ENVIRONMENT=development
+FRONTEND_URL=http://localhost:5173
+COOKIE_DOMAIN=localhost
+
+# AI
+GROQ_API_KEY=your_groq_api_key
+
+# SMTP
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
 ```
 
 ---
