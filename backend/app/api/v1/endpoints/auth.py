@@ -57,7 +57,9 @@ def login(user_data: LoginRequest, response: Response, db: Session = Depends(get
 def logout(response: Response):
     response.delete_cookie(
         key="access_token", 
-        domain=settings.COOKIE_DOMAIN
+        domain=settings.COOKIE_DOMAIN,
+        secure=settings.secure_cookies,
+        samesite="none" if settings.is_production else "lax"
     )
     return {"message": "Successfully logged out"}
 
