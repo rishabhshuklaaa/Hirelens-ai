@@ -7,7 +7,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 def send_email(to_email: str, subject: str, body: str) -> bool:
-    """Sends an email using configured SMTP settings."""
+    """Sends an email using configured SMTP SSL settings."""
     if not settings.SMTP_USERNAME or not settings.SMTP_PASSWORD:
         logger.error("SMTP credentials not configured in .env")
         raise Exception("Email server not configured. Cannot send email.")
@@ -20,9 +20,8 @@ def send_email(to_email: str, subject: str, body: str) -> bool:
         
         msg.attach(MIMEText(body, 'plain'))
         
-        # FIX: Added timeout=15 and using context manager 'with' to prevent connection leaks/hangs
-        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT, timeout=15) as server:
-            server.starttls() # Secure the connection
+        # ✅ FIX: Using SMTP_SSL with port 465 for universal compatibility (Local + Render)
+        with smtplib.SMTP_SSL(settings.SMTP_SERVER, settings.SMTP_PORT, timeout=15) as server:
             server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
             server.send_message(msg)
             

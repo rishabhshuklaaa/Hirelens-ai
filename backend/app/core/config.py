@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # SMTP Settings
     SMTP_SERVER: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
+    SMTP_PORT: int = 465
     SMTP_USERNAME: str | None = None
     SMTP_PASSWORD: str | None = None
 

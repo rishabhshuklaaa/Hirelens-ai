@@ -24,8 +24,10 @@ python-magic==0.4.27
 langchain-core==0.2.10
 langchain-groq==0.1.6
 
+requests==2.31.0
+
 # command for backend
 # uvicorn app.main:app --reload
 
 # command for frontend
-# nom run dev
+# npm run dev
