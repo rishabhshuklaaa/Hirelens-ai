@@ -47,7 +47,7 @@ def login(user_data: LoginRequest, response: Response, db: Session = Depends(get
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Synced with JWT expiry
         httponly=True,
         secure=settings.secure_cookies,
-        samesite="lax",  # Lax for cross-site requests, can be changed to 'strict' if needed
+        samesite= "none" if settings.is_production else "lax",  # Lax for cross-site requests, can be changed to 'strict' if needed
         domain=settings.COOKIE_DOMAIN # None in dev, string in prod
     )
     
