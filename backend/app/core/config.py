@@ -25,12 +25,15 @@ class Settings(BaseSettings):
     # Sanity/GROQ API Key for LangChain Groq integration
     GROQ_API_KEY: str
 
-
-    # SMTP Settings
+    # SMTP Settings (Preserved as is)
     SMTP_SERVER: str = "smtp.gmail.com"
     SMTP_PORT: int = 465
     SMTP_USERNAME: str | None = None
     SMTP_PASSWORD: str | None = None
+
+    # Brevo API Settings (Added without breaking existing logic)
+    BREVO_API_KEY: str | None = None
+    SENDER_EMAIL: str = "rishabhshuklaitm786@gmail.com"
 
     @property
     def is_production(self) -> bool:
