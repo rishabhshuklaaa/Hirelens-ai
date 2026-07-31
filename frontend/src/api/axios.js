@@ -1,9 +1,9 @@
 import axios from "axios";
 
-// Centralized Axios instance for all API calls
 const api = axios.create({
-  baseURL: "http://localhost:8000/api/v1",
-  withCredentials: true, // Crucial: Allows sending/receiving HTTP-only cookies
+  baseURL:
+    import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1",
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
